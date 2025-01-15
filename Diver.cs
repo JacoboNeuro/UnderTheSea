@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+
 
 namespace UnderTheSea;
 internal class Diver : MonoBehaviour
@@ -17,38 +17,10 @@ internal class Diver : MonoBehaviour
     
     public Player player;
     public float BaseSwimSpeed { get; private set; }    
-    public const float DefaultSwimDepth = 1.6f;
+    public const float DefaultSwimDepth = 1.5f;
     public const float DivingSwimDepth = 2.2f;
     public const float SprintSwimSpeed = 3f;
-    public const float SwimSpeedDelta = 0.25f;
-
-    /// <summary>
-    ///     Check if character is a Player and try get cached diver component for them.
-    /// </summary>
-    /// <param name="character"></param>
-    /// <param name="diver"></param>
-    /// <returns></returns>
-    public static bool TryGetDiver(Character character, out Diver diver)
-    {
-        return TryGetDiver((Player)character, out diver);
-    }
-
-    /// <summary>
-    ///     Try get cached diver component for player.
-    /// </summary>
-    /// <param name="player"></param>
-    /// <param name="diver"></param>
-    /// <returns></returns>
-    public static bool TryGetDiver(Player player, out Diver diver)
-    {
-        if (player && Divers.TryGetValue(player, out diver))
-        {
-            return true;
-        }
-        diver = null;
-        return false;
-    }
-
+    public const float SwimSpeedDelta = 1f;  // m/s
 
     public void Awake()
     {
@@ -98,16 +70,21 @@ internal class Diver : MonoBehaviour
         return !IsDiving() && player.IsSwimming() && player.GetVelocity().magnitude < 1.0f;
     }
 
+
+    public void DrainDivingStamina(float dt)
+    {
+        float skillFactor = player.m_skills.GetSkillFactor(Skills.SkillType.Swim);
+        float num = Mathf.Lerp(player.m_swimStaminaDrainMinSkill, player.m_swimStaminaDrainMaxSkill, skillFactor);
+        num += num * player.GetEquipmentSwimStaminaModifier();
+        player.m_seman.ModifySwimStaminaUsage(num, ref num);
+        player.UseStamina(dt * num * Game.m_moveStaminaRate * UnderTheSea.Instance.UnderwaterRestingStaminaDrainRate.Value);
+    }
+
     /// <summary>
     ///     Accumulate swimming XP if diving
     /// </summary>
     public void UpdateSwimSkill(float dt)
     {
-        if (!IsDiving())
-        {
-            return;
-        }
-  
         player.m_swimSkillImproveTimer += dt;
         if (player.m_swimSkillImproveTimer > 1f)
         {
@@ -134,7 +111,7 @@ internal class Diver : MonoBehaviour
     public void Ascend(float dt)
     {
         player.SetMoveDir(player.transform.forward);
-        float newDepth = player.m_swimDepth - SwimSpeedDelta * dt;
+        float newDepth = player.m_swimDepth - (SwimSpeedDelta * dt);
         player.m_swimDepth = Mathf.Max(newDepth, DefaultSwimDepth);
     }
 
@@ -144,21 +121,27 @@ internal class Diver : MonoBehaviour
     public void UpdateDivingDepth(float dt)
     {
         DiveDirection diveDir = GetDiveDirection();
-     
-        if (diveDir != DiveDirection.NEUTRAL)
+
+        if (diveDir == DiveDirection.NEUTRAL)
         {
-            float multiplier = player.m_lookDir.y * player.m_lookDir.y * SwimSpeedDelta;
-            multiplier = Mathf.Min(multiplier, 0.025f) * dt;
-        
-            if (diveDir == DiveDirection.DOWN)
-            {
-                player.m_swimDepth += multiplier;
-            }
-            else if (diveDir == DiveDirection.UP)
-            {
-                float newDepth = player.m_swimDepth - multiplier;
-                player.m_swimDepth = Mathf.Max(newDepth, DefaultSwimDepth);
-            }
+            return;
+        }
+
+        float multiplier = player.m_lookDir.y * player.m_lookDir.y * SwimSpeedDelta * dt;
+                    
+        if (diveDir == DiveDirection.DOWN)
+        {
+            player.m_swimDepth += multiplier;
+        }
+        else if (diveDir == DiveDirection.UP)
+        {
+            float newDepth = player.m_swimDepth - multiplier;
+            player.m_swimDepth = Mathf.Max(newDepth, DefaultSwimDepth);
+        }
+
+        if (IsDiving())
+        {
+            UpdateDiveDirection();
         }
     }
 

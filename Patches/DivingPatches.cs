@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using System.Text;
-using System.Threading.Tasks;
-using HarmonyLib;
+﻿using HarmonyLib;
 using UnityEngine;
 
 namespace UnderTheSea.Patches;
@@ -13,44 +6,16 @@ namespace UnderTheSea.Patches;
 [HarmonyPatch]
 internal static class DivingPatches
 {
-    private static readonly Dictionary<Player, Diver> Divers = [];
-
-    internal static bool CanDive(Player player)
-    {
-        return player.InWater() && !player.IsOnGround() && player.IsSwimming();
-    }
-
-    private static bool IsValidLocalPlayer(Character character, out Player player)
-    {
-        if (character && Player.m_localPlayer && ReferenceEquals(character, Player.m_localPlayer))
-        {
-            player = Player.m_localPlayer;
-            return true;
-        }
-
-        player = null;
-        return false;
-    }
-
-    private static bool IsValidLocalPlayer(Player player)
-    {
-        return player && Player.m_localPlayer && ReferenceEquals(player, Player.m_localPlayer);
-    }
-
-    
+    //TODO: make sure stamina is drained slowly whenever underwater
 
     /// <summary>
     ///     Modify swim depth of local player and add Diver componenet.
     /// </summary>
     /// <param name="__instance"></param>
-    [HarmonyPrefix]
+    [HarmonyPostfix]
     [HarmonyPatch(typeof(Player), nameof(Player.Awake))]
     private static void Player_Awake_Prefix(Player __instance)
     {
-        if (!IsValidLocalPlayer(__instance))
-        {
-            return;
-        }
         __instance.gameObject.AddComponent<Diver>();
     }
 
@@ -58,34 +23,33 @@ internal static class DivingPatches
     [HarmonyPatch(typeof(Character), nameof(Character.CustomFixedUpdate))]
     private static void Prefix(Character __instance, float dt)
     {
-        if (!Diver.TryGetDiver(__instance, out Diver diver) || !UnderTheSea.Instance.IsEnvAllowed())
+        if (!Utils.TryGetDiver(__instance, out Diver diver) || !UnderTheSea.Instance.IsEnvAllowed())
         {
             return;
         }
 
         diver.ResetSwimDepthIfNotInWater();
+        
 
-        if (ZInput.GetButtonDown("Jump") && diver.IsDiving())
+        if (ZInput.GetButton("Jump") && diver.IsDiving())
         {
             diver.Ascend(dt);
         }
-        else if (ZInput.GetButtonDown("Crouch") && diver.CanDive())
+        else if (ZInput.GetButton("Crouch") && diver.CanDive())
         {
-            diver.UpdateSwimSkill(dt);
             diver.UpdateDivingDepth(dt);
-            diver.UpdateDiveDirection();
         }
         else if ((__instance.IsOnGround() || !diver.IsDiving()) && !diver.IsRestingInWater())
         {
             diver.ResetSwimDepthToDefault();
-        }
+        }       
     }
 
     [HarmonyPrefix]
     [HarmonyPatch(typeof(Character), nameof(Character.UpdateMotion))]
     private static void Character_UpdateMotion_Prefix(Character __instance)
     {
-        if (!Diver.TryGetDiver(__instance, out Diver diver) || !UnderTheSea.Instance.IsEnvAllowed())
+        if (!Utils.TryGetDiver(__instance, out Diver diver) || !UnderTheSea.Instance.IsEnvAllowed())
         {
             return;
         }
@@ -108,14 +72,14 @@ internal static class DivingPatches
     [HarmonyPatch(typeof(Character), nameof(Character.UpdateSwimming))]
     public static void UpdateSwimming_Prefix(Character __instance, float dt)
     {
-        if (!Diver.TryGetDiver(__instance, out Diver diver))
+        if (!Utils.TryGetDiver(__instance, out Diver diver))
         {
             return;
         }
 
         float multiplier = ZInput.GetButton("Run") ? dt : -dt;
         float swimSpeed = diver.player.m_swimSpeed + (Diver.SwimSpeedDelta * multiplier);
-        diver.player.m_swimSpeed = Mathf.Clamp(swimSpeed, diver.BaseSwimSpeed, Diver.SprintSwimSpeed);     
+        diver.player.m_swimSpeed = Mathf.Clamp(swimSpeed, diver.BaseSwimSpeed, UnderTheSea.Instance.MaxSwimSpeed.Value);     
     }
 
 
@@ -129,17 +93,29 @@ internal static class DivingPatches
     [HarmonyPatch(typeof(Player), nameof(Player.OnSwimming))]
     public static void Player_OnSwimming_Prefix(Player __instance, Vector3 targetVel, float dt)
     {
-        if (!__instance || targetVel.magnitude > 0.1f)
+        if (!Utils.TryGetDiver(__instance, out Diver diver))
         {
-            return; 
+            return;
         }
 
-        __instance.m_staminaRegenTimer -= dt;
-        if (__instance.GetStamina() < __instance.GetMaxStamina() && __instance.m_staminaRegenTimer <= -0.2f)
+        if (diver.IsDiving() && targetVel.magnitude < 0.1f)
         {
-            float skillFactor = __instance.m_skills.GetSkillFactor(Skills.SkillType.Swim);
-            __instance.m_stamina = Mathf.Min(__instance.GetMaxStamina(), __instance.m_stamina + (1f + skillFactor) * 0.5f * __instance.m_staminaRegen * dt * Game.m_staminaRegenRate);
+            diver.DrainDivingStamina(dt);
+            diver.UpdateSwimSkill(dt);
         }
-        
-    }
+        else if (diver.IsRestingInWater() && targetVel.magnitude < 0.1f)
+        {
+            __instance.m_staminaRegenTimer -= dt;
+            
+            if (
+                __instance.GetStamina() < __instance.GetMaxStamina() && 
+                __instance.m_staminaRegenTimer <= -UnderTheSea.Instance.RestingStaminaRegenDelay.Value * __instance.m_staminaRegenDelay
+            )
+            {
+                float skillFactor = __instance.m_skills.GetSkillFactor(Skills.SkillType.Swim);
+                float regenSpeed = (1f + skillFactor) * UnderTheSea.Instance.RestingStaminaRegenRate.Value * __instance.m_staminaRegen;
+                __instance.m_stamina = Mathf.Min(__instance.GetMaxStamina(), __instance.m_stamina + regenSpeed * dt * Game.m_staminaRegenRate);
+            }
+        }
+    }		
 }

@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 using UnityEngine;
 using HarmonyLib;
-using System.Runtime.Remoting.Messaging;
 using UnityEngine.Rendering;
 
 namespace UnderTheSea.Patches;
@@ -15,12 +10,7 @@ internal static class WaterCameraPatches
 {
     private static float WaterLevelCamera = 0f;
     private static float WaterLevelPlayer = 0f;
-    private const float ColorBrightnessFactor = -0.0092f;
-    private const float FogDensityFactor = 0.00092f;
-    private const float MinFogDensity = 0.1f;
-    private const float MaxFogDensity = 2f;
     private static bool ShouldResetCamera = false;
-    private static float? DefaultMinWaterDistance = null;
 
     private static Color ChangeColorBrightness(Color color, float correctionFactor)
     {
@@ -58,7 +48,7 @@ internal static class WaterCameraPatches
     [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateCamera))]
     private static void GameCamera_UpdateCamera_Prefix(GameCamera __instance)
     {
-        if (!Diver.TryGetDiver(Player.m_localPlayer, out Diver diver) || !__instance)
+        if (!Utils.TryGetDiver(Player.m_localPlayer, out Diver diver) || !__instance)
         {
             return;
         }
@@ -86,11 +76,11 @@ internal static class WaterCameraPatches
             Color waterColor = !EnvMan.IsNight() ? currentEnv.m_fogColorDay : currentEnv.m_fogColorNight;
             waterColor.a = 1f;
 
-            waterColor = ChangeColorBrightness(waterColor, diver.player.m_swimDepth * ColorBrightnessFactor);
+            waterColor = ChangeColorBrightness(waterColor, diver.player.m_swimDepth * -UnderTheSea.Instance.ColorDarknessFactor.Value);
             RenderSettings.fogColor = waterColor;
 
-            float fogDensity = RenderSettings.fogDensity + (diver.player.m_swimDepth * FogDensityFactor);
-            fogDensity = Mathf.Clamp(fogDensity, MinFogDensity, MaxFogDensity);
+            float fogDensity = RenderSettings.fogDensity + (diver.player.m_swimDepth * UnderTheSea.Instance.FogDensityFactor.Value);
+            fogDensity = Mathf.Clamp(fogDensity, UnderTheSea.Instance.MinFogDensity.Value, UnderTheSea.Instance.MaxFogDensity.Value);
             RenderSettings.fogDensity = fogDensity;
 
             ShouldResetCamera = true;
