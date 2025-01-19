@@ -18,7 +18,7 @@ internal static class UseEquipPatches
     /// <param name="__instance"></param>
     [HarmonyPrefix]
     [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.UpdateEquipment))]
-    public static void UpdateRotation_Prefix(Humanoid __instance)
+    public static void UpdateEquipment_Prefix(Humanoid __instance)
     {
         UpdatingEquipment = true;
     }
@@ -27,9 +27,9 @@ internal static class UseEquipPatches
     ///     Reset whether equipment is being updated.
     /// </summary>
     /// <param name="__instance"></param>
-    [HarmonyPrefix]
+    [HarmonyPostfix]
     [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.UpdateEquipment))]
-    public static void UpdateRotation_Postfix(Humanoid __instance)
+    public static void UpdateEquipment_Postfix(Humanoid __instance)
     {
         UpdatingEquipment = false;
     }
@@ -40,7 +40,7 @@ internal static class UseEquipPatches
     /// <param name="__instance"></param>
     [HarmonyPrefix]
     [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.EquipItem))]
-    public static void Equpitem_Prefix(Humanoid __instance)
+    public static void EqupItem_Prefix(Humanoid __instance)
     {
         EquipingItem = true;
     }
@@ -49,9 +49,9 @@ internal static class UseEquipPatches
     ///     Reset whether equipment is being updated.
     /// </summary>
     /// <param name="__instance"></param>
-    [HarmonyPrefix]
+    [HarmonyPostfix]
     [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.EquipItem))]
-    public static void EquipItm_Postfix(Humanoid __instance)
+    public static void EquipItem_Postfix(Humanoid __instance)
     {
         EquipingItem = false;
     }
@@ -63,8 +63,13 @@ internal static class UseEquipPatches
     /// <param name="__result"></param>
     [HarmonyPostfix]
     [HarmonyPatch(typeof(Character), nameof(Character.IsSwimming))]
-    public static void IsSwimming_Postfic(Character __instance, ref bool __result)
+    public static void IsSwimming_Postfix(Character __instance, ref bool __result)
     {
+        if (!UnderTheSea.Instance.UseEquipInWater.Value)
+        {
+            return;
+        }
+
         if ((!EquipingItem && !UpdatingEquipment) || !__instance || !__instance.IsPlayer())
         {
             return;
