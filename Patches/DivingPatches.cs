@@ -6,6 +6,8 @@ namespace UnderTheSea.Patches;
 [HarmonyPatch]
 internal static class DivingPatches
 {
+
+    private static bool InUpdateSwimming = false;
     //TODO: make sure stamina is drained slowly whenever underwater
 
     /// <summary>
@@ -20,32 +22,6 @@ internal static class DivingPatches
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Character), nameof(Character.CustomFixedUpdate))]
-    private static void Prefix(Character __instance, float dt)
-    {
-        if (!Utils.TryGetDiver(__instance, out Diver diver) || !UnderTheSea.Instance.IsEnvAllowed())
-        {
-            return;
-        }
-
-        diver.ResetSwimDepthIfNotInWater();
-        
-
-        if (ZInput.GetButton("Jump") && diver.IsDiving())
-        {
-            diver.Ascend(dt);
-        }
-        else if (ZInput.GetButton("Crouch") && diver.CanDive())
-        {
-            diver.UpdateDivingDepth(dt);
-        }
-        else if ((__instance.IsOnGround() || !diver.IsDiving()) && !diver.IsRestingInWater())
-        {
-            diver.ResetSwimDepthToDefault();
-        }       
-    }
-
-    [HarmonyPrefix]
     [HarmonyPatch(typeof(Character), nameof(Character.UpdateMotion))]
     private static void Character_UpdateMotion_Prefix(Character __instance)
     {
@@ -54,14 +30,15 @@ internal static class DivingPatches
             return;
         }
 
+        diver.ResetSwimDepthIfNotInWater();
+
         // Bug fix for swimming on land glitch - originally __instance.m_swimDepth > 2.5f
-        if (diver.IsDiving() && Mathf.Max(0f, __instance.GetLiquidLevel() - __instance.transform.position.y) > Diver.DivingSwimDepth)
+        if (diver.IsUnderSurface() && diver.IsInsideLiquid())
         {
             diver.player.m_lastGroundTouch = 0.3f;
             diver.player.m_swimTimer = 0f;
         }
     }
-
 
     /// <summary>
     ///     Update swim speed based on how long sprint key has been held.
@@ -70,21 +47,77 @@ internal static class DivingPatches
     /// <param name="dt"></param>
     [HarmonyPrefix]
     [HarmonyPatch(typeof(Character), nameof(Character.UpdateSwimming))]
-    public static void UpdateSwimming_Prefix(Character __instance, float dt)
+    public static void UpdateSwimming_Prefix(Character __instance, float dt, out Vector3? __state)
     {
+        InUpdateSwimming = true;
+        __state = null;
         if (!Utils.TryGetDiver(__instance, out Diver diver))
         {
             return;
         }
+ 
+        diver.UpdateSwimSpeed(dt);
+        if (ZInput.GetButton("Jump") && diver.IsUnderSurface())
+        {
+            diver.Dive(dt, ascend: true, out __state);
+        }
+        else if (ZInput.GetButton("Crouch") && diver.CanDive())
+        {
+            diver.Dive(dt, ascend: false, out __state);
+        }
+        else if ((__instance.IsOnGround() || !diver.IsDiving()) && !diver.IsRestingInWater())
+        {
+            diver.ResetSwimDepthToDefault();
+        }
+    }
 
-        float multiplier = ZInput.GetButton("Run") ? dt : -dt;
-        float swimSpeed = diver.player.m_swimSpeed + (Diver.SwimSpeedDelta * multiplier);
-        diver.player.m_swimSpeed = Mathf.Clamp(swimSpeed, diver.BaseSwimSpeed, UnderTheSea.Instance.MaxSwimSpeed.Value);     
+    /// <summary>
+    ///     Reset player.m_moveDir after diving to avoid causing issues elsewhere due to the non-zero y-component.
+    /// </summary>
+    /// <param name="__instance"></param>
+    /// <param name="dt"></param>
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(Character), nameof(Character.UpdateSwimming))]
+    public static void UpdateSwimming_Postfix(Character __instance, float dt, ref Vector3? __state)
+    {
+        InUpdateSwimming = false;
+        if (__state.HasValue)
+        {
+            __instance.m_moveDir = __state.Value;
+            __state = null;
+        }
     }
 
 
     /// <summary>
-    ///     Stamina regenerates at half speed while swimming.
+    ///     Allow 3D rotation towards movement direction when under the surface of a liquid during UpdateSwimming.
+    /// </summary>
+    /// <param name="__instance"></param>
+    /// <param name="turnSpeed"></param>
+    /// <param name="dt"></param>
+    /// <param name="smooth"></param>
+    [HarmonyPostfix]    
+    [HarmonyPatch(typeof(Character), nameof(Character.UpdateRotation))]
+    public static void UpdateRotation_Postfix(Character __instance, float turnSpeed, float dt, bool smooth)
+    {
+        if (!InUpdateSwimming)
+        {
+            return;
+        }
+
+        if (!Utils.TryGetDiver(__instance, out Diver diver) || !diver.IsUnderSurface())
+        {
+            return;
+        }
+
+        Player player = diver.player;
+        Quaternion quaternion = (player.AlwaysRotateCamera() || player.m_moveDir == Vector3.zero) ? player.m_lookYaw : Quaternion.LookRotation(player.m_moveDir);
+        float effectiveSpeed = turnSpeed * player.GetAttackSpeedFactorRotation();
+        player.transform.rotation = Quaternion.RotateTowards(player.transform.rotation, quaternion, effectiveSpeed * dt);
+    }
+
+    /// <summary>
+    ///     Handle updating swim skill and stamina when diving or resting in water.
     /// </summary>
     /// <param name="__instance"></param>
     /// <param name="targetVel"></param>
@@ -93,29 +126,19 @@ internal static class DivingPatches
     [HarmonyPatch(typeof(Player), nameof(Player.OnSwimming))]
     public static void Player_OnSwimming_Prefix(Player __instance, Vector3 targetVel, float dt)
     {
-        if (!Utils.TryGetDiver(__instance, out Diver diver))
+        if (targetVel.magnitude >= 0.1f || !Utils.TryGetDiver(__instance, out Diver diver))
         {
             return;
         }
 
-        if (diver.IsDiving() && targetVel.magnitude < 0.1f)
+        if (diver.IsDiving())
         {
             diver.DrainDivingStamina(dt);
             diver.UpdateSwimSkill(dt);
         }
-        else if (diver.IsRestingInWater() && targetVel.magnitude < 0.1f)
+        else if (diver.IsRestingInWater())
         {
-            __instance.m_staminaRegenTimer -= dt;
-            
-            if (
-                __instance.GetStamina() < __instance.GetMaxStamina() && 
-                __instance.m_staminaRegenTimer <= -UnderTheSea.Instance.RestingStaminaRegenDelay.Value * __instance.m_staminaRegenDelay
-            )
-            {
-                float skillFactor = __instance.m_skills.GetSkillFactor(Skills.SkillType.Swim);
-                float regenSpeed = (1f + skillFactor) * UnderTheSea.Instance.RestingStaminaRegenRate.Value * __instance.m_staminaRegen;
-                __instance.m_stamina = Mathf.Min(__instance.GetMaxStamina(), __instance.m_stamina + regenSpeed * dt * Game.m_staminaRegenRate);
-            }
+            diver.RegenRestingStamina(dt);
         }
     }		
 }

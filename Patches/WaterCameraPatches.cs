@@ -12,37 +12,6 @@ internal static class WaterCameraPatches
     private static float WaterLevelPlayer = 0f;
     private static bool ShouldResetCamera = false;
 
-    private static Color ChangeColorBrightness(Color color, float correctionFactor)
-    {
-        float red = color.r;
-        float green = color.g;
-        float blue = color.b;
-        if (!(correctionFactor < 0f))
-        {
-            return new Color(red, green, blue, color.a);
-        }
-        correctionFactor *= -1f;
-
-        red -= red * correctionFactor;
-        if (red < 0f)
-        {
-            red = 0f;
-        }
-
-        green -= green * correctionFactor;
-        if (green < 0f)
-        {
-            green = 0f;
-        }
-
-        blue -= blue * correctionFactor;
-        if (blue < 0f)
-        {
-            blue = 0f;
-        }
-        return new Color(red, green, blue, color.a);
-    }
-
 
     [HarmonyPrefix]
     [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateCamera))]
@@ -153,5 +122,37 @@ internal static class WaterCameraPatches
             waterSurfaceTransfrom.position = waterSurfacePosition;
             __instance.m_waterSurface.material.SetFloat(Shader.PropertyToID("_UseGlobalWind"), __instance.m_useGlobalWind ? 1f : 0f);
         }
+    }
+
+
+    private static Color ChangeColorBrightness(Color color, float correctionFactor)
+    {
+        float red = color.r;
+        float green = color.g;
+        float blue = color.b;
+        if (!(correctionFactor < 0f))
+        {
+            return new Color(red, green, blue, color.a);
+        }
+        correctionFactor *= -1f;
+
+        red -= red * correctionFactor;
+        if (red < 0f)
+        {
+            red = 0f;
+        }
+
+        green -= green * correctionFactor;
+        if (green < 0f)
+        {
+            green = 0f;
+        }
+
+        blue -= blue * correctionFactor;
+        if (blue < 0f)
+        {
+            blue = 0f;
+        }
+        return new Color(red, green, blue, color.a);
     }
 }
