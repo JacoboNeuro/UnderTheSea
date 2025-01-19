@@ -6,24 +6,7 @@ using Jotunn.Utils;
 using Jotunn.Managers;
 using Configs;
 using Logging;
-using UnityEngine;
 using Jotunn.Extensions;
-
-// To begin using: rename the solution and project, then find and replace all instances of "UnderTheSea"
-// Next: rename the main plugin as desired.
-
-// If using Jotunn then the following files should be removed from Configs:
-// - ConfigManagerWatcher
-// - ConfigurationManagerAttributes
-// - ConfigFileExtensions should be editted to only include `DisableSaveOnConfigSet`
-
-// If not using Jotunn
-// - Remove the decorators on the MainPlugin
-// - Swap from using SynchronizationManager.OnConfigurationWindowClosed to using ConfigManagerWatcher.OnConfigurationWindowClosed
-// - Remove calls to SynchronizationManager.OnConfigurationSynchronized
-// - Adjust using statements as needed
-// - Remove nuget Jotunn package via manage nuget packages
-// - Uncomment the line: <Import Project="$(JotunnProps)" Condition="Exists('$(JotunnProps)')" /> in the csproj file
 
 namespace UnderTheSea;
 
@@ -59,6 +42,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
     public ConfigEntry<float> FogDensityFactor;
     public ConfigEntry<float> MinFogDensity;
     public ConfigEntry<float> MaxFogDensity;
+    public ConfigEntry<bool> UseEquipInWater;
 
     //Env values
     public static string EnvName = "";
@@ -79,20 +63,20 @@ internal sealed class UnderTheSea : BaseUnityPlugin
 
         // Re-initialization after reloading config and don't save since file was just reloaded
         ConfigFileWatcher = new(Config);
-        ConfigFileWatcher.OnConfigFileReloaded += () =>
-        {
-            // do stuff
-        };
+        //ConfigFileWatcher.OnConfigFileReloaded += () =>
+        //{
+        //    // do stuff
+        //};
 
-        SynchronizationManager.OnConfigurationSynchronized += (obj, e) =>
-        {
-            // do stuff
-        };
+        //SynchronizationManager.OnConfigurationSynchronized += (obj, e) =>
+        //{
+        //    // do stuff
+        //};
 
-        SynchronizationManager.OnConfigurationWindowClosed += () =>
-        {
-            // do stuff
-        };
+        //SynchronizationManager.OnConfigurationWindowClosed += () =>
+        //{
+        //    // do stuff
+        //};
 
     }
 
@@ -100,6 +84,14 @@ internal sealed class UnderTheSea : BaseUnityPlugin
     {
 
         // Server synced config values
+        UseEquipInWater = Config.BindConfigInOrder(
+            GlobalSection,
+            "Use Equipment in Water",
+            true,
+            "Whether you can use equipment while in water.",
+            synced: true
+        );
+
         RestingStaminaRegenDelay = Config.BindConfigInOrder(
             GlobalSection,
             "Treading Water Stamina Regen Delay",
