@@ -59,12 +59,25 @@ internal class Diver : MonoBehaviour
     }
 
     /// <summary>
-    ///     In water and able to dive.
+    ///     In water, swimmming, not on ground, and the ground is at least 1m below player.
     /// </summary>
     /// <returns></returns>
     public bool CanDive()
     {
-        return player.InWater() && !player.IsOnGround() && player.IsSwimming();
+        if (!player.InWater() || player.IsOnGround() || !player.IsSwimming())
+        {
+            return false;
+        }
+
+        if (player.GetGroundHeight(player.transform.position, out float height, out Vector3 _))
+        {
+            if (player.transform.position.y - height < 1f)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -190,7 +203,7 @@ internal class Diver : MonoBehaviour
         if (horizontalDir.magnitude < 0.1f)
         {
             //  make the direction more horizontal if ascending and surfacing
-            float scale = ascend && IsSurfacing() ? 0.5f : 0.05f;
+            float scale = ascend && IsSurfacing() ? 0.6f : 0.05f;
             horizontalDir = GetHorizontalLookDir(scale);
         }
 
