@@ -90,6 +90,26 @@ internal static class DivingPatches
 
 
     /// <summary>
+    ///     Cache player rotation before UpdateRotation and pass to postfix to allow 
+    ///     checking if rotation occured and avoid duplicating rotations.
+    /// </summary>
+    /// <param name="__instance"></param>
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(Character), nameof(Character.UpdateRotation))]
+    public static void UpdateRotation_Postfix(Character __instance, out Quaternion? __state)
+    {
+
+        if (InUpdateSwimming)
+        {
+            __state = __instance.transform.rotation;
+        }
+        else
+        {
+            __state = null;
+        }
+    }
+
+    /// <summary>
     ///     Allow 3D rotation towards movement direction when under the surface of a liquid during UpdateSwimming.
     /// </summary>
     /// <param name="__instance"></param>
@@ -98,18 +118,27 @@ internal static class DivingPatches
     /// <param name="smooth"></param>
     [HarmonyPostfix]    
     [HarmonyPatch(typeof(Character), nameof(Character.UpdateRotation))]
-    public static void UpdateRotation_Postfix(Character __instance, float turnSpeed, float dt, bool smooth)
+    public static void UpdateRotation_Postfix(Character __instance, float turnSpeed, float dt, ref Quaternion? __state)
     {
-        if (!InUpdateSwimming)
+        // Should not update rotation.
+        if (!InUpdateSwimming || !__state.HasValue || !__instance)
         {
             return;
         }
 
+        // Rotation was already updated.
+        if (__instance.transform.rotation != __state.Value)
+        {
+            return;
+        }
+
+        // Not under currently diving or surfacing so don't update.
         if (!Utils.TryGetDiver(__instance, out Diver diver) || !diver.IsUnderSurface())
         {
             return;
         }
 
+        // Update rotation to reflect diving direction.
         Player player = diver.player;
         Quaternion quaternion = (player.AlwaysRotateCamera() || player.m_moveDir == Vector3.zero) ? player.m_lookYaw : Quaternion.LookRotation(player.m_moveDir);
         float effectiveSpeed = turnSpeed * player.GetAttackSpeedFactorRotation();
