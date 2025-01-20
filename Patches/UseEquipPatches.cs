@@ -36,7 +36,7 @@ internal static class UseEquipPatches
         CodeMatcher codeMatcher = new(instructions);
 
         codeMatcher.MatchStartForward(CodeMatches).ThrowIfNotMatch($"Failed to find match in {methodName}!");
-        codeMatcher.Advance(InstructionMatchCount + 1); // move to after the match (account for missing line at end)
+        codeMatcher.Advance(InstructionMatchCount); // move to after the match (account for missing line at end)
 
         return codeMatcher.InsertAndAdvance(
             new List<CodeInstruction>()
@@ -58,7 +58,7 @@ internal static class UseEquipPatches
         CodeMatcher codeMatcher = new(instructions);
 
         codeMatcher.MatchStartForward(CodeMatches).ThrowIfNotMatch($"Failed to find match in {methodName}!");
-        codeMatcher.Advance(InstructionMatchCount + 1); // move to after the match (account for missing line at end)
+        codeMatcher.Advance(InstructionMatchCount); // move to after the match (account for missing line at end)
 
         return codeMatcher.InsertAndAdvance(
             new List<CodeInstruction>()
