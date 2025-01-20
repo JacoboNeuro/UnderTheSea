@@ -88,7 +88,6 @@ internal static class DivingPatches
         }
     }
 
-
     /// <summary>
     ///     Cache player rotation before UpdateRotation and pass to postfix to allow 
     ///     checking if rotation occured and avoid duplicating rotations.
