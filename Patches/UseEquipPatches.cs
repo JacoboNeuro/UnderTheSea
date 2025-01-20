@@ -1,79 +1,86 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Reflection.Emit;
 using HarmonyLib;
 
 namespace UnderTheSea.Patches;
+
+[HarmonyPatch]
 internal static class UseEquipPatches
 {
 
-    private static bool UpdatingEquipment = false;
-    private static bool EquipingItem = false;
+    // Call to check if IsSwimming() && !IsOnGround()
+    // Call to check if !IsSwimming() || IsOnGround()
+    // Missing the last line as it swaps between new CodeMatch(OpCodes.Brtrue) and new CodeMatch(OpCodes.Brfalse)
+    private static readonly CodeMatch[] CodeMatches = [
+        new CodeMatch(OpCodes.Ldarg_0),
+        new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Character), nameof(Character.IsSwimming))),
+        new CodeMatch(OpCodes.Brfalse),
+        new CodeMatch(OpCodes.Ldarg_0),
+        new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Character), nameof(Character.IsOnGround))), 
+    ];
 
-    /// <summary>
-    ///     Set whether equipment is being updated.
-    /// </summary>
-    /// <param name="__instance"></param>
-    [HarmonyPrefix]
+    // Account for the 1 missing line.
+    private static readonly int InstructionMatchCount = CodeMatches.Length + 1;
+    
+    private static bool ShouldHideItem()
+    {
+        return !UnderTheSea.Instance.UseEquipInWater.Value;
+    }
+
+    [HarmonyTranspiler]
     [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.UpdateEquipment))]
-    public static void UpdateEquipment_Prefix(Humanoid __instance)
+    private static IEnumerable<CodeInstruction> UpdateEquipment_Transpiler(IEnumerable<CodeInstruction> instructions)
     {
-        UpdatingEquipment = true;
+        string methodName = "Humanoid.UpdateEquipment";
+        // Search Instructions for Call to IsSwimming() and IsOnGround() using CodeMatches
+        CodeMatcher codeMatcher = new(instructions);
+
+        codeMatcher.MatchStartForward(CodeMatches).ThrowIfNotMatch($"Failed to find match in {methodName}!");
+        codeMatcher.Advance(InstructionMatchCount + 1); // move to after the match (account for missing line at end)
+
+        return codeMatcher.InsertAndAdvance(
+            new List<CodeInstruction>()
+            {
+                Transpilers.EmitDelegate(ShouldHideItem),
+                new(OpCodes.Brfalse, codeMatcher.InstructionAt(-1).operand) // Get label from previous instruction
+            }
+        )
+        .ThrowIfInvalid($"Failed to patch {methodName}!")
+        .InstructionEnumeration();
     }
 
-    /// <summary>
-    ///     Reset whether equipment is being updated.
-    /// </summary>
-    /// <param name="__instance"></param>
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.UpdateEquipment))]
-    public static void UpdateEquipment_Postfix(Humanoid __instance)
-    {
-        UpdatingEquipment = false;
-    }
-
-    /// <summary>
-    ///     Set whether item is being equiped.
-    /// </summary>
-    /// <param name="__instance"></param>
-    [HarmonyPrefix]
+    [HarmonyTranspiler]
     [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.EquipItem))]
-    public static void EqupItem_Prefix(Humanoid __instance)
+    private static IEnumerable<CodeInstruction> EquipItem_Transpiler(IEnumerable<CodeInstruction> instructions)
     {
-        EquipingItem = true;
+        string methodName = "Humanoid.EquipItem";
+        // Search Instructions for Call to IsSwimming() and IsOnGround() using CodeMatches
+        CodeMatcher codeMatcher = new(instructions);
+
+        codeMatcher.MatchStartForward(CodeMatches).ThrowIfNotMatch($"Failed to find match in {methodName}!");
+        codeMatcher.Advance(InstructionMatchCount + 1); // move to after the match (account for missing line at end)
+
+        return codeMatcher.InsertAndAdvance(
+            new List<CodeInstruction>()
+            {
+                Transpilers.EmitDelegate(ShouldHideItem),
+                new(OpCodes.Brfalse, codeMatcher.InstructionAt(-1).operand) // Get label from previous instruction
+            }
+        )
+        .ThrowIfInvalid($"Failed to patch {methodName}!")
+        .InstructionEnumeration();
     }
 
-    /// <summary>
-    ///     Reset whether equipment is being updated.
-    /// </summary>
-    /// <param name="__instance"></param>
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.EquipItem))]
-    public static void EquipItem_Postfix(Humanoid __instance)
+    [HarmonyTranspiler]
+    [HarmonyPatch(typeof(Player), nameof(Player.Update))]
+    private static IEnumerable<CodeInstruction> UpdatePlayer_Transpiler(IEnumerable<CodeInstruction> instructions)
     {
-        EquipingItem = false;
-    }
-
-    /// <summary>
-    ///     Pretend player is not swimming if it is for checking about equipement.
-    /// </summary>
-    /// <param name="__instance"></param>
-    /// <param name="__result"></param>
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(Character), nameof(Character.IsSwimming))]
-    public static void IsSwimming_Postfix(Character __instance, ref bool __result)
-    {
-        if (!UnderTheSea.Instance.UseEquipInWater.Value)
-        {
-            return;
-        }
-
-        if ((!EquipingItem && !UpdatingEquipment) || !__instance || !__instance.IsPlayer())
-        {
-            return;
-        }
-        __result = false;
+        // Remove calls to !IsSwimming() || IsOnGround() so the show item shortcut can run.
+        return new CodeMatcher(instructions)
+            .MatchStartForward(CodeMatches)
+            .Advance(1) // Move to first line of matching code
+            .RemoveInstructions(InstructionMatchCount)
+            .ThrowIfInvalid("Failed to patch Player.Update!")
+            .InstructionEnumeration();
     }
 }
