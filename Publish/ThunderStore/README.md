@@ -43,10 +43,12 @@ If you like this mod you might like some of my other ones.
 - [CameraTweaks](https://thunderstore.io/c/valheim/p/Searica/CameraTweaks/)
 - [DodgeShortcut](https://thunderstore.io/c/valheim/p/Searica/DodgeShortcut/)
 - [DiscoveryPins](https://thunderstore.io/c/valheim/p/Searica/DiscoveryPins/)
+- [ExplorersVision](https://thunderstore.io/c/valheim/p/Searica/ExplorersVision/)
 - [FortifySkillsRedux](https://thunderstore.io/c/valheim/p/Searica/FortifySkillsRedux/)
 - [ProjectileTweaks](https://thunderstore.io/c/valheim/p/Searica/ProjectileTweaks/)
 - [SkilledCarryWeight](https://thunderstore.io/c/valheim/p/Searica/SkilledCarryWeight/)
 - [SafetyStatus](https://thunderstore.io/c/valheim/p/Searica/SafetyStatus/)
+- [ShowMeTheGoods](https://thunderstore.io/c/valheim/p/Searica/ShowMeTheGoods/)
 - [WatchWhereYouStab](https://thunderstore.io/c/valheim/p/Searica/WatchWhereYouStab/)
 
 #### Networking Mods
