@@ -23,7 +23,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
     public const string PluginName = "UnderTheSea";
     internal const string Author = "Searica";
     public const string PluginGUID = $"{Author}.Valheim.{PluginName}";
-    public const string PluginVersion = "0.1.0";
+    public const string PluginVersion = "0.1.1";
 
     internal static UnderTheSea Instance;
     internal static ConfigFile ConfigFile;
@@ -114,7 +114,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
             GlobalSection,
             "Underwater Stamina Drain",
             0.5f,
-            "How fast you drain stamina while floating underwater without moving as a mulitple of the default swimming drain.",
+            "How fast you drain stamina while floating underwater without moving as a multiple of the default swimming drain.",
             acceptableValues: new AcceptableValueRange<float>(0f, 2f),
             synced: true
         );
@@ -131,7 +131,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
         ColorDarknessFactor = Config.BindConfigInOrder(
             GlobalSection,
             "Color Darkness Factor",
-            0.0092f,
+            0.08298756f,
             "How quickly colors become darker as you dive deeper.",
             acceptableValues: new AcceptableValueRange<float>(0f, 1f),
             synced: false
@@ -140,7 +140,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
         FogDensityFactor = Config.BindConfigInOrder(
             GlobalSection,
             "Fog Density Factor",
-            0.00092f,
+            0.0f,
             "How quickly the fog gets thicker as you dive deeper.",
             acceptableValues: new AcceptableValueRange<float>(0f, 0.5f),
             synced: false
@@ -148,7 +148,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
         MinFogDensity = Config.BindConfigInOrder(
             GlobalSection,
             "Min Fog Density",
-            0.1f,
+            0.06452283f,
             "Minimum fog density underwater regardless of depth.",
             acceptableValues: new AcceptableValueRange<float>(0.05f, 1f),
             synced: false
@@ -156,7 +156,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
         MaxFogDensity = Config.BindConfigInOrder(
             GlobalSection,
             "Max Fog Density",
-            2f,
+            1.518672f,
             "Maximum fog density underwater regardless of depth.",
             acceptableValues: new AcceptableValueRange<float>(1f, 5f),
             synced: false
