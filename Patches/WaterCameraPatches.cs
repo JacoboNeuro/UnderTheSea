@@ -11,7 +11,36 @@ internal static class WaterCameraPatches
     private static float WaterLevelCamera = 0f;
     private static float WaterLevelPlayer = 0f;
     private static bool ShouldResetCamera = false;
+    private const float UnderWaterCameraMinWaterDistance = -5000f;
+    private static float? CachedMinWaterDistance = null;
 
+    /// <summary>
+    ///     Sets m_minWaterDistance to -5000f and caches previous
+    ///     value if there is not a cached value already.
+    /// </summary>
+    /// <param name="gameCamera"></param>
+    private static void SetMinWaterDistanceUnderWater(GameCamera gameCamera)
+    {
+        if (!CachedMinWaterDistance.HasValue)
+        {
+            CachedMinWaterDistance = gameCamera.m_minWaterDistance;
+        }
+        gameCamera.m_minWaterDistance = UnderWaterCameraMinWaterDistance;
+    }
+
+    /// <summary>
+    ///     Resets m_minWatetDistance to the cached value if it 
+    ///     is not null and sets cached value to null.
+    /// </summary>
+    /// <param name="gameCamera"></param>
+    private static void ResetMinWaterDistance(GameCamera gameCamera)
+    {
+        if (CachedMinWaterDistance.HasValue)
+        {
+            gameCamera.m_minWaterDistance = CachedMinWaterDistance.Value;
+            CachedMinWaterDistance = null;
+        }
+    }
 
     [HarmonyPrefix]
     [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateCamera))]
@@ -27,18 +56,18 @@ internal static class WaterCameraPatches
 
         if (isMovingInWater && !diver.IsRestingInWater() && UnderTheSea.Instance.IsEnvAllowed())
         {
-            __instance.m_minWaterDistance = -5000f;
+            SetMinWaterDistanceUnderWater(__instance);
         }
         else
         {
-            __instance.m_minWaterDistance = 0.3f;
+            ResetMinWaterDistance(__instance);
         }
 
         if (camera.gameObject.transform.position.y < WaterLevelCamera && isMovingInWater && UnderTheSea.Instance.IsEnvAllowed())
         {
-            if (__instance.m_minWaterDistance != -5000f)
+            if (__instance.m_minWaterDistance != UnderWaterCameraMinWaterDistance)
             {
-                __instance.m_minWaterDistance = -5000f;
+                SetMinWaterDistanceUnderWater(__instance);
             }
 
             EnvSetup currentEnv = EnvMan.instance.GetCurrentEnvironment();
