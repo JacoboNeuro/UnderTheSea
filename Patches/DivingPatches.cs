@@ -168,5 +168,23 @@ internal static class DivingPatches
         {
             diver.RegenRestingStamina(dt);
         }
-    }		
+    }
+
+    /// <summary>
+    ///     Prevent crouching while swimming.
+    /// </summary>
+    /// <param name="__instance"></param>
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(Player), nameof(Player.SetControls))]
+    private static void PreventCrouchWhileSwimming(Player __instance, ref bool crouch)
+    {
+        if (!Utils.IsValidLocalPlayer(__instance))
+        {
+            return;
+        }
+        if (__instance.IsSwimming())
+        {
+            crouch = false;
+        }
+    }
 }

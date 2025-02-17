@@ -8,6 +8,14 @@
 			<th align="center">Notes</th>
 		</tr>
 		<tr>
+			<td align="center">0.1.2</td>
+			<td align="left">
+				<ul>
+					<li>Prevent crouching while swimming.</li>
+				</ul>
+			</td>
+		</tr>
+		<tr>
 			<td align="center">0.1.1</td>
 			<td align="left">
 				<ul>

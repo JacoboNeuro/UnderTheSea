@@ -23,7 +23,7 @@ internal sealed class UnderTheSea : BaseUnityPlugin
     public const string PluginName = "UnderTheSea";
     internal const string Author = "Searica";
     public const string PluginGUID = $"{Author}.Valheim.{PluginName}";
-    public const string PluginVersion = "0.1.1";
+    public const string PluginVersion = "0.1.2";
 
     internal static UnderTheSea Instance;
     internal static ConfigFile ConfigFile;
