@@ -7,8 +7,8 @@
 			<th align="center">Version</th>
 			<th align="center">Notes</th>
 		</tr>
-		<tr>
-					<td align="center">0.1.3</td>
+	    <tr>
+			<td align="center">0.1.3</td>
 			<td align="left">
 				<ul>
 					<li>Added gamepad support.</li>
